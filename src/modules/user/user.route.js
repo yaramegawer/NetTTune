@@ -7,6 +7,15 @@ const user_router = Router();
 
 user_router.post("/sign_up", error_handle(user_controller.sign_up));
 user_router.post("/log_in", error_handle(user_controller.log_in));
-user_router.get("/get_profile",auth(),error_handle(user_controller.list_profile))
+user_router.get(
+  "/get_profile",
+  auth(),
+  error_handle(user_controller.list_profile)
+);
+user_router.put(
+  "/update",
+  auth(),
+  error_handle(user_controller.update_profile)
+);
 
 export { user_router };
