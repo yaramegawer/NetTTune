@@ -32,7 +32,6 @@ const user_schema = new Schema(
         ref: "content",
       },
     ],
-    playlists: [{ type: Schema.Types.ObjectId, ref: "content" }],
   },
   { timestamps: true, versionKey: false }
 );
