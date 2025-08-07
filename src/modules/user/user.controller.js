@@ -2,6 +2,7 @@ import { Error_handler_class } from "../../../../nettune/src/utils/index.js";
 import { user } from "../../../Database/models/index.js";
 import { compareSync, hashSync } from "bcrypt";
 import jwt from "jsonwebtoken";
+// sign up api
 export const sign_up = async (req, res, next) => {
   const { username, email, password } = req.body;
   const is_email_exists = await user.findOne({ email });
@@ -17,6 +18,7 @@ export const sign_up = async (req, res, next) => {
     .status(201)
     .json({ message: "user created successfully", user_id: new_user._id });
 };
+// log in api
 export const log_in = async (req, res, next) => {
   const { email, password } = req.body;
   const is_user_exists = await user.findOne({ email });
@@ -41,4 +43,13 @@ export const log_in = async (req, res, next) => {
   res
     .status(200)
     .json({ message: "user logged in successfully", token: token });
+};
+// get profile api
+export const list_profile = async (req, res, next) => {
+  const { _id } = req.authUser;
+  const find_user = await user.findById(_id).select("-password");
+  if (!find_user) {
+    next(new Error_handler_class("user not found", 404, "list profile api"));
+  }
+  res.status(200).json(find_user);
 };
