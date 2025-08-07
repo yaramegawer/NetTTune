@@ -3,7 +3,7 @@ const { Schema, model } = mongoose;
 
 const user_schema = new Schema(
   {
-    user_name: {
+    username: {
       type: String,
       required: true,
     },
@@ -19,7 +19,7 @@ const user_schema = new Schema(
     role: {
       type: String,
       enum: ["user", "admin", "premium"],
-      default: true,
+      default: "user",
     },
     subscription_status: {
       type: String,
