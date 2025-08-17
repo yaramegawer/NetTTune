@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket.IO Comment Test</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    .comment-form {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    button.delete {
+      background-color: #dc3545;
+    }
+    button.delete:hover {
+      background-color: #c82333;
+    }
+    button.edit {
+      background-color: #28a745;
+    }
+    button.edit:hover {
+      background-color: #218838;
+    }
+    .comments-list {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .comment-item {
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .comment-item:last-child {
+      border-bottom: none;
+    }
+    .comment-content {
+      flex: 1;
+    }
+    .comment-text {
+      margin: 5px 0;
+      color: #333;
+    }
+    .comment-meta {
+      font-size: 12px;
+      color: #666;
+    }
+    .comment-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .edit-form {
+      display: none;
+      margin-top: 10px;
+    }
+    .edit-form.show {
+      display: block;
+    }
+    .edit-input {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .edit-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Real-Time Comments System</h1>
+
+  <div class="comment-form">
+    <h3>Add New Comment</h3>
+    <form id="commentForm">
+      <div class="form-group">
+        <label for="contentId">Movie/Content ID:</label>
+        <input type="text" id="contentId" placeholder="Enter content ID" required>
+      </div>
+      <div class="form-group">
+        <label for="text">Comment:</label>
+        <textarea id="text" placeholder="Enter your comment" rows="3" required></textarea>
+      </div>
+      <button type="submit">Send Comment</button>
+    </form>
+  </div>
+
+  <div class="comments-list">
+    <h3>Comments</h3>
+    <div style="margin-bottom: 15px;">
+      <button onclick="refreshComments(document.getElementById('contentId').value)" style="background-color: #6c757d;">
+        🔄 Refresh Comments
+      </button>
+    </div>
+    <ul id="commentsList"></ul>
+  </div>
+
+  <script>
+    // Connect to Socket.IO server
+    const socket = io("http://localhost:3000"); // change to your backend port
+    
+    let comments = []; // Store comments in memory for real-time updates
+
+    // Listen for new comments in real time
+    socket.on("newComment", (comment) => {
+      console.log("Real-time comment received:", comment);
+      // Ensure the comment has an _id field
+      if (comment._id) {
+        comments.push(comment);
+        displayComments();
+      } else {
+        console.error("Comment missing _id field:", comment);
+      }
+    });
+
+    // Listen for deleted comments in real time
+    socket.on("deleteComment", (deletedComment) => {
+      console.log("Real-time comment deleted:", deletedComment);
+      comments = comments.filter(c => c._id !== deletedComment._id);
+      displayComments();
+    });
+
+    // Listen for edited comments in real time
+    socket.on("editComment", (updatedComment) => {
+      console.log("Real-time comment updated:", updatedComment);
+      const index = comments.findIndex(c => c._id === updatedComment._id);
+      if (index !== -1) {
+        comments[index] = updatedComment;
+        displayComments();
+      } else {
+        console.error("Comment not found for update:", updatedComment);
+      }
+    });
+
+    // Display all comments
+    function displayComments() {
+      const commentsList = document.getElementById("commentsList");
+      commentsList.innerHTML = "";
+      
+      comments.forEach(comment => {
+        // Debug: log comment object to see what we're working with
+        console.log("Displaying comment:", comment);
+        
+        const li = document.createElement("li");
+        li.className = "comment-item";
+        li.innerHTML = `
+          <div class="comment-content">
+            <div class="comment-text">${comment.text || 'No text'}</div>
+            <div class="comment-meta">
+              Content ID: ${comment.contentId || 'No content ID'} | 
+              ${comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Just now'}
+            </div>
+            <div class="edit-form" id="editForm-${comment._id || 'unknown'}">
+              <textarea class="edit-input" id="editText-${comment._id || 'unknown'}" rows="2">${comment.text || ''}</textarea>
+              <div class="edit-buttons">
+                <button onclick="saveEdit('${comment._id || 'unknown'}')" class="edit">Save</button>
+                <button onclick="cancelEdit('${comment._id || 'unknown'}')">Cancel</button>
+              </div>
+            </div>
+          </div>
+          <div class="comment-actions">
+            <button onclick="editComment('${comment._id || 'unknown'}')" class="edit">Edit</button>
+            <button onclick="deleteComment('${comment._id || 'unknown'}')" class="delete">Delete</button>
+          </div>
+        `;
+        commentsList.appendChild(li);
+      });
+    }
+
+    // Edit comment function
+    function editComment(commentId) {
+      console.log("Edit comment called with ID:", commentId);
+      if (commentId === 'unknown') {
+        alert('Cannot edit comment: Missing comment ID');
+        return;
+      }
+      const editForm = document.getElementById(`editForm-${commentId}`);
+      if (editForm) {
+        editForm.classList.add('show');
+      } else {
+        console.error("Edit form not found for comment ID:", commentId);
+      }
+    }
+
+    // Cancel edit function
+    function cancelEdit(commentId) {
+      if (commentId === 'unknown') return;
+      const editForm = document.getElementById(`editForm-${commentId}`);
+      if (editForm) {
+        editForm.classList.remove('show');
+      }
+    }
+
+    // Save edit function
+    async function saveEdit(commentId) {
+      console.log("Save edit called with ID:", commentId);
+      if (commentId === 'unknown') {
+        alert('Cannot save comment: Missing comment ID');
+        return;
+      }
+      
+      const editText = document.getElementById(`editText-${commentId}`).value;
+      
+      if (!editText.trim()) {
+        alert('Comment text cannot be empty');
+        return;
+      }
+
+      try {
+        console.log("Sending PUT request to:", `http://localhost:3000/comments/${commentId}`);
+        console.log("Request body:", { text: editText });
+        
+        const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: editText })
+        });
+
+        console.log("Response status:", res.status);
+        console.log("Response ok:", res.ok);
+
+        if (res.ok) {
+          const result = await res.json();
+          console.log("Edit successful:", result);
+          const editForm = document.getElementById(`editForm-${commentId}`);
+          if (editForm) {
+            editForm.classList.remove('show');
+          }
+          // The real-time update will handle the UI update
+        } else {
+          const errorText = await res.text();
+          console.error("Edit failed with status:", res.status, "Error:", errorText);
+          alert(`Failed to update comment: ${res.status} - ${errorText}`);
+        }
+      } catch (error) {
+        console.error('Error updating comment:', error);
+        alert('Error updating comment: ' + error.message);
+      }
+    }
+
+    // Delete comment function
+    async function deleteComment(commentId) {
+      if (!confirm('Are you sure you want to delete this comment?')) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
+          method: "DELETE"
+        });
+
+        if (res.ok) {
+          // The real-time update will handle the UI update
+        } else {
+          alert('Failed to delete comment');
+        }
+      } catch (error) {
+        console.error('Error deleting comment:', error);
+        alert('Error deleting comment');
+      }
+    }
+
+    // Send new comment via HTTP (API)
+    document.getElementById("commentForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const data = {
+        contentId: document.getElementById("contentId").value,
+        text: document.getElementById("text").value
+      };
+
+      try {
+        const res = await fetch("http://localhost:3000/comments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          console.log("Comment created:", result);
+          // Clear form
+          document.getElementById("commentForm").reset();
+          // The real-time update will handle adding the comment to the list
+        } else {
+          alert('Failed to create comment');
+        }
+      } catch (error) {
+        console.error('Error creating comment:', error);
+        alert('Error creating comment');
+      }
+    });
+
+    // Load existing comments on page load (optional)
+    async function loadComments() {
+      try {
+        // Get the contentId from the form or use a default
+        const contentId = document.getElementById("contentId").value;
+        if (!contentId) {
+          console.log("No contentId provided, skipping comment load");
+          return;
+        }
+
+        console.log("Loading comments for contentId:", contentId);
+        
+        // Use your existing movie endpoint to get comments
+        const res = await fetch(`http://localhost:3000/movies/${contentId}`);
+        if (res.ok) {
+          const result = await res.json();
+          console.log("Movie data received:", result);
+          
+          // Extract comments from the movie response
+          if (result.movie && result.movie.comments) {
+            comments = result.movie.comments;
+            console.log("Comments loaded:", comments);
+            displayComments();
+          } else if (result.comments) {
+            // If comments are directly in the response
+            comments = result.comments;
+            console.log("Comments loaded:", comments);
+            displayComments();
+          } else {
+            console.log("No comments found in response");
+          }
+        } else {
+          console.error("Failed to load movie/comments:", res.status);
+        }
+      } catch (error) {
+        console.error('Error loading comments:', error);
+      }
+    }
+
+    // Function to refresh comments for a specific content
+    async function refreshComments(contentId) {
+      if (!contentId) {
+        console.log("No contentId provided for refresh");
+        return;
+      }
+
+      try {
+        console.log("Refreshing comments for contentId:", contentId);
+        
+        const res = await fetch(`http://localhost:3000/movies/${contentId}`);
+        if (res.ok) {
+          const result = await res.json();
+          
+          if (result.movie && result.movie.comments) {
+            comments = result.movie.comments;
+            displayComments();
+          } else if (result.comments) {
+            comments = result.comments;
+            displayComments();
+          }
+        }
+      } catch (error) {
+        console.error('Error refreshing comments:', error);
+      }
+    }
+
+    // Add event listener to contentId input to load comments when changed
+    document.getElementById("contentId").addEventListener("change", function() {
+      const contentId = this.value;
+      if (contentId) {
+        refreshComments(contentId);
+      }
+    });
+
+    // Load comments when page loads (only if contentId is pre-filled)
+    loadComments();
+  </script>
+</body>
+</html>
