@@ -1,10 +1,12 @@
 {
   "name": "nettune",
   "version": "1.0.0",
+
   "main": "index.js",
   "type": "module",
   "scripts": {
     "start": "nodemon index.js"
+
   },
   "keywords": [],
   "author": "",
@@ -25,6 +27,9 @@
     "puppeteer": "^24.15.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-adblocker": "^2.13.6",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "bcrypt": "^6.0.0",
+    "jsonwebtoken": "^9.0.2"
+
   }
 }
