@@ -1,4 +1,4 @@
-import { Error_handler_class } from "../../../../nettune/src/utils/index.js";
+import { Error_handler_class } from "../.././utils/index.js";
 import { user } from "../../../Database/models/index.js";
 import { compareSync, hashSync } from "bcrypt";
 import jwt from "jsonwebtoken";

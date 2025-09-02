@@ -2,10 +2,10 @@ import { Schema, Types, model } from "mongoose";
 
 const commentSchema=new Schema({
  
-//   userId:{
-//     type:Types.ObjectId,
-//     ref:User
-//   },TODO
+  userId:{
+    type:Types.ObjectId,
+    ref:'user',
+  },
   contentId:{
     type:Types.ObjectId,
     ref:'Content',

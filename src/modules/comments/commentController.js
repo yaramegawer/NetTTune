@@ -4,7 +4,8 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 
 export const addComment=asyncHandler(async(req,res,next)=>{
 
-    const comment=await Comment.create({...req.body})
+    const userId=req.authUser._id;
+    const comment=await Comment.create({userId:userId,...req.body,})
 
     io.emit("newComment", comment);
     return res.json({

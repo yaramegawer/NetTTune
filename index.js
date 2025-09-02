@@ -1,9 +1,10 @@
-<<<<<<< HEAD
 import express from'express';
 import { connectDB } from './DB/connection.js';
 import dotenv from 'dotenv';
 import moviesRouter from './src/modules/Movies/MoviesRouter.js';
 import commentRouter from './src/modules/comments/commentRouter.js';
+import {user_router} from './src/modules/index.js';
+import favMovieRouter from './src/modules/FavouriteMovie/favMovieRouter.js';
 import cron from 'node-cron';
 import { scrapeMovies } from './src/services/scrabeService.js';
 import cors from 'cors';
@@ -28,7 +29,8 @@ export const io = new Server(server, {
 app.use(express.json())
 app.use('/movies',moviesRouter);
 app.use('/comments',commentRouter)
-
+app.use('/user',user_router)
+app.use('/favourites',favMovieRouter);
 cron.schedule("0 9 */3 * *", () => {
   console.log("Running scheduled scrapeMovies task...");
   scrapeMovies({}, { json: () => {} }, () => {});
@@ -60,20 +62,3 @@ io.on('connection',(socket)=>{
 })
 
 server.listen(process.env.PORT, () => console.log(`Example app listening at http://localhost:${process.env.PORT}`))
-=======
-import express from "express";
-import db_connection from "./Database/connection.js";
-import { config } from "dotenv";
-import { user_router } from "./src/modules/index.js";
-import { global_response } from "./src/middlewares/index.js";
-config();
-const app = express();
-const port = process.env.PORT;
-await db_connection();
-
-app.use(express.json());
-app.use("/user",user_router)
-app.use(global_response)
-app.get("/", (req, res) => res.send("Hello World!"));
-app.listen(port, () => console.log(`Example app listening on port ${port}!`));
->>>>>>> origin/main

@@ -15,6 +15,13 @@
       color: #333;
       text-align: center;
     }
+    .auth-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
     .comment-form {
       background: white;
       padding: 20px;
@@ -62,6 +69,12 @@
     }
     button.edit:hover {
       background-color: #218838;
+    }
+    button.logout {
+      background-color: #6c757d;
+    }
+    button.logout:hover {
+      background-color: #5a6268;
     }
     .comments-list {
       background: white;
@@ -112,12 +125,80 @@
     .hidden {
       display: none;
     }
+    .user-info {
+      background: #e9ecef;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .debug-panel {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .debug-panel h4 {
+      margin-top: 0;
+      color: #495057;
+    }
+    .debug-panel div {
+      margin-bottom: 5px;
+    }
   </style>
 </head>
 <body>
   <h1>Real-Time Comments System</h1>
 
-  <div class="comment-form">
+  <!-- Authentication Section -->
+  <div class="auth-section" id="authSection">
+    <h3>Login</h3>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email" placeholder="Enter your email" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password:</label>
+        <input type="password" id="password" placeholder="Enter your password" required>
+      </div>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+
+  <!-- User Info Section (hidden until logged in) -->
+  <div class="user-info hidden" id="userInfo">
+    <span>Welcome, <span id="userEmail"></span>!</span>
+    <button onclick="logout()" class="logout">Logout</button>
+  </div>
+
+  <!-- Debug Panel (hidden until logged in) -->
+  <div class="debug-panel hidden" id="debugPanel">
+    <h4>Debug Info</h4>
+    <div><strong>Token:</strong> <span id="debugToken">Not set</span></div>
+    <div><strong>User Email:</strong> <span id="debugEmail">Not set</span></div>
+    <div><strong>Token in localStorage:</strong> <span id="debugLocalStorage">Not set</span></div>
+    <div style="margin-top: 15px;">
+      <strong>Token Format:</strong>
+      <select id="tokenFormat" onchange="updateTokenFormat()">
+        <option value="net">net ${token}</option>
+        <option value="bearer">Authorization: Bearer ${token}</option>
+        <option value="x-auth">X-Auth-Token: ${token}</option>
+        <option value="x-access">X-Access-Token: ${token}</option>
+      </select>
+    </div>
+    <button onclick="refreshDebugInfo()" style="background-color: #17a2b8; margin-top: 10px;">Refresh Debug Info</button>
+    <button onclick="testBackendConnection()" style="background-color: #28a745; margin-top: 10px; margin-left: 10px;">Test Backend</button>
+    <button onclick="testCommentSubmission()" style="background-color: #ffc107; margin-top: 10px; margin-left: 10px;">Test Comment</button>
+  </div>
+
+  <!-- Comment Form (hidden until logged in) -->
+  <div class="comment-form hidden" id="commentFormSection">
     <h3>Add New Comment</h3>
     <form id="commentForm">
       <div class="form-group">
@@ -132,7 +213,8 @@
     </form>
   </div>
 
-  <div class="comments-list">
+  <!-- Comments List (hidden until logged in) -->
+  <div class="comments-list hidden" id="commentsSection">
     <h3>Comments</h3>
     <div style="margin-bottom: 15px;">
       <button onclick="refreshComments(document.getElementById('contentId').value)" style="background-color: #6c757d;">
@@ -143,10 +225,240 @@
   </div>
 
   <script>
+    // Token management
+    let authToken = localStorage.getItem('authToken');
+    let userEmail = localStorage.getItem('userEmail');
+    
+    // Check if user is already logged in
+    if (authToken && userEmail) {
+      showAuthenticatedUI();
+    }
+
     // Connect to Socket.IO server
     const socket = io("http://localhost:3000"); // change to your backend port
     
     let comments = []; // Store comments in memory for real-time updates
+
+    // Login form handler
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      
+      console.log("Attempting login with:", { email, password });
+      
+      try {
+        const res = await fetch("http://localhost:3000/user/log_in", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        console.log("Login response status:", res.status);
+        console.log("Login response ok:", res.ok);
+
+        if (res.ok) {
+          const result = await res.json();
+          console.log("Login response data:", result);
+          
+          // Try different possible token field names
+          if (result.token) {
+            authToken = result.token;
+          } else if (result.accessToken) {
+            authToken = result.accessToken;
+          } else if (result.access_token) {
+            authToken = result.access_token;
+          } else if (result.jwt) {
+            authToken = result.jwt;
+          } else {
+            console.error("No token found in response:", result);
+            alert("Login successful but no token received. Please check backend response format.");
+            return;
+          }
+          
+          userEmail = email;
+          
+          // Store token and user info
+          localStorage.setItem('authToken', authToken);
+          localStorage.setItem('userEmail', userEmail);
+          
+          console.log("Token stored:", authToken);
+          console.log("User email stored:", userEmail);
+          
+          showAuthenticatedUI();
+          console.log("Login successful, UI updated");
+        } else {
+          const errorText = await res.text();
+          console.error("Login failed with status:", res.status, "Error:", errorText);
+          
+          try {
+            const errorData = JSON.parse(errorText);
+            alert(`Login failed: ${errorData.message || errorData.error || 'Unknown error'}`);
+          } catch (parseError) {
+            alert(`Login failed: ${res.status} - ${errorText}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error during login:', error);
+        alert('Error during login: ' + error.message);
+      }
+    });
+
+    // Logout function
+    function logout() {
+      console.log("Logging out user");
+      authToken = null;
+      userEmail = null;
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userEmail');
+      showLoginUI();
+      comments = [];
+      displayComments();
+    }
+
+    // Show authenticated UI
+    function showAuthenticatedUI() {
+      document.getElementById('authSection').classList.add('hidden');
+      document.getElementById('userInfo').classList.remove('hidden');
+      document.getElementById('debugPanel').classList.remove('hidden');
+      document.getElementById('commentFormSection').classList.remove('hidden');
+      document.getElementById('commentsSection').classList.remove('hidden');
+      document.getElementById('userEmail').textContent = userEmail;
+      refreshDebugInfo();
+    }
+
+    // Show login UI
+    function showLoginUI() {
+      document.getElementById('authSection').classList.remove('hidden');
+      document.getElementById('userInfo').classList.add('hidden');
+      document.getElementById('debugPanel').classList.add('hidden');
+      document.getElementById('commentFormSection').classList.add('hidden');
+      document.getElementById('commentsSection').classList.add('hidden');
+    }
+
+    // Refresh debug information
+    function refreshDebugInfo() {
+      document.getElementById('debugToken').textContent = authToken ? authToken.substring(0, 20) + '...' : 'Not set';
+      document.getElementById('debugEmail').textContent = userEmail || 'Not set';
+      document.getElementById('debugLocalStorage').textContent = localStorage.getItem('authToken') ? 'Set' : 'Not set';
+    }
+
+    // Helper function to get headers with token
+    function getAuthHeaders() {
+      const headers = { "Content-Type": "application/json" };
+      if (authToken) {
+        const tokenFormat = document.getElementById('tokenFormat').value;
+        
+        switch(tokenFormat) {
+          case 'bearer':
+            headers["Authorization"] = `Bearer ${authToken}`;
+            break;
+          case 'x-auth':
+            headers["X-Auth-Token"] = authToken;
+            break;
+          case 'x-access':
+            headers["X-Access-Token"] = authToken;
+            break;
+          default: // 'net'
+            headers["token"] = `net ${authToken}`;
+            break;
+        }
+        
+        console.log("Adding token to headers with format:", tokenFormat, headers);
+      } else {
+        console.warn("No auth token available for request");
+      }
+      return headers;
+    }
+
+    // Update token format
+    function updateTokenFormat() {
+      const format = document.getElementById('tokenFormat').value;
+      console.log("Token format changed to:", format);
+      refreshDebugInfo();
+    }
+
+    // Test backend connection
+    async function testBackendConnection() {
+      console.log("Testing backend connection...");
+      
+      try {
+        // Test basic connectivity
+        const res = await fetch("http://localhost:3000/", {
+          method: "GET",
+          headers: getAuthHeaders()
+        });
+        
+        console.log("Backend test response:", res.status, res.ok);
+        
+        if (res.ok) {
+          const text = await res.text();
+          console.log("Backend response:", text);
+          alert("Backend connection successful!");
+        } else {
+          alert(`Backend connection failed: ${res.status}`);
+        }
+      } catch (error) {
+        console.error("Backend connection error:", error);
+        alert("Backend connection error: " + error.message);
+      }
+    }
+
+    // Test comment submission with detailed logging
+    async function testCommentSubmission() {
+      console.log("=== TESTING COMMENT SUBMISSION ===");
+      
+      if (!authToken) {
+        alert("Please login first to test comment submission");
+        return;
+      }
+      
+      const testData = {
+        contentId: "test123",
+        text: "This is a test comment from debug panel"
+      };
+      
+      console.log("Test data:", testData);
+      console.log("Current token:", authToken);
+      console.log("Token format:", document.getElementById('tokenFormat').value);
+      console.log("Headers to send:", getAuthHeaders());
+      
+      try {
+        console.log("Sending test comment to: http://localhost:3000/comments");
+        
+        const res = await fetch("http://localhost:3000/comments", {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(testData)
+        });
+        
+        console.log("Test comment response status:", res.status);
+        console.log("Test comment response ok:", res.ok);
+        console.log("Test comment response headers:", res.headers);
+        
+        if (res.ok) {
+          const result = await res.json();
+          console.log("Test comment created successfully:", result);
+          alert("Test comment created successfully! Check console for details.");
+        } else {
+          const errorText = await res.text();
+          console.error("Test comment failed:", res.status, errorText);
+          
+          try {
+            const errorData = JSON.parse(errorText);
+            alert(`Test comment failed: ${res.status} - ${errorData.message || errorData.error || errorText}`);
+          } catch (parseError) {
+            alert(`Test comment failed: ${res.status} - ${errorText}`);
+          }
+        }
+      } catch (error) {
+        console.error("Test comment error:", error);
+        alert("Test comment error: " + error.message);
+      }
+      
+      console.log("=== END TESTING COMMENT SUBMISSION ===");
+    }
 
     // Listen for new comments in real time
     socket.on("newComment", (comment) => {
@@ -259,7 +571,7 @@
         
         const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ text: editText })
         });
 
@@ -275,6 +587,11 @@
           }
           // The real-time update will handle the UI update
         } else {
+          if (res.status === 401) {
+            alert('Authentication expired. Please login again.');
+            logout();
+            return;
+          }
           const errorText = await res.text();
           console.error("Edit failed with status:", res.status, "Error:", errorText);
           alert(`Failed to update comment: ${res.status} - ${errorText}`);
@@ -293,12 +610,18 @@
 
       try {
         const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
-          method: "DELETE"
+          method: "DELETE",
+          headers: getAuthHeaders()
         });
 
         if (res.ok) {
           // The real-time update will handle the UI update
         } else {
+          if (res.status === 401) {
+            alert('Authentication expired. Please login again.');
+            logout();
+            return;
+          }
           alert('Failed to delete comment');
         }
       } catch (error) {
@@ -311,30 +634,81 @@
     document.getElementById("commentForm").addEventListener("submit", async (e) => {
       e.preventDefault();
 
+      const contentId = document.getElementById("contentId").value;
+      const text = document.getElementById("text").value;
+
+      console.log("Submitting comment:", { contentId, text });
+      console.log("Current auth token:", authToken);
+
+      if (!authToken) {
+        alert("You must be logged in to add comments. Please login first.");
+        return;
+      }
+
+      if (!contentId.trim()) {
+        alert("Please enter a content ID");
+        return;
+      }
+
+      if (!text.trim()) {
+        alert("Please enter a comment");
+        return;
+      }
+
       const data = {
-        contentId: document.getElementById("contentId").value,
-        text: document.getElementById("text").value
+        contentId: contentId,
+        text: text
       };
+
+      console.log("Comment data to send:", data);
+      console.log("Request headers:", getAuthHeaders());
 
       try {
         const res = await fetch("http://localhost:3000/comments", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders(),
           body: JSON.stringify(data)
         });
 
+        console.log("Comment creation response status:", res.status);
+        console.log("Comment creation response ok:", res.ok);
+
         if (res.ok) {
           const result = await res.json();
-          console.log("Comment created:", result);
+          console.log("Comment created successfully:", result);
+          
           // Clear form
           document.getElementById("commentForm").reset();
-          // The real-time update will handle adding the comment to the list
+          
+          // Show success message
+          alert("Comment added successfully!");
+          
+          // Refresh comments to show the new one
+          refreshComments(contentId);
         } else {
-          alert('Failed to create comment');
+          const errorText = await res.text();
+          console.error("Comment creation failed with status:", res.status, "Error:", errorText);
+          
+          if (res.status === 401) {
+            alert('Authentication expired. Please login again.');
+            logout();
+            return;
+          } else if (res.status === 400) {
+            try {
+              const errorData = JSON.parse(errorText);
+              alert(`Comment creation failed: ${errorData.message || errorData.error || 'Bad request'}`);
+            } catch (parseError) {
+              alert(`Comment creation failed: Bad request - ${errorText}`);
+            }
+          } else if (res.status === 500) {
+            alert('Server error. Please try again later.');
+          } else {
+            alert(`Failed to create comment: ${res.status} - ${errorText}`);
+          }
         }
       } catch (error) {
         console.error('Error creating comment:', error);
-        alert('Error creating comment');
+        alert('Error creating comment: ' + error.message);
       }
     });
 
@@ -351,7 +725,9 @@
         console.log("Loading comments for contentId:", contentId);
         
         // Use your existing movie endpoint to get comments
-        const res = await fetch(`http://localhost:3000/movies/${contentId}`);
+        const res = await fetch(`http://localhost:3000/movies/${contentId}`, {
+          headers: getAuthHeaders()
+        });
         if (res.ok) {
           const result = await res.json();
           console.log("Movie data received:", result);
@@ -370,6 +746,11 @@
             console.log("No comments found in response");
           }
         } else {
+          if (res.status === 401) {
+            alert('Authentication expired. Please login again.');
+            logout();
+            return;
+          }
           console.error("Failed to load movie/comments:", res.status);
         }
       } catch (error) {
@@ -387,7 +768,9 @@
       try {
         console.log("Refreshing comments for contentId:", contentId);
         
-        const res = await fetch(`http://localhost:3000/movies/${contentId}`);
+        const res = await fetch(`http://localhost:3000/movies/${contentId}`, {
+          headers: getAuthHeaders()
+        });
         if (res.ok) {
           const result = await res.json();
           
@@ -397,6 +780,12 @@
           } else if (result.comments) {
             comments = result.comments;
             displayComments();
+          }
+        } else {
+          if (res.status === 401) {
+            alert('Authentication expired. Please login again.');
+            logout();
+            return;
           }
         }
       } catch (error) {
@@ -412,8 +801,10 @@
       }
     });
 
-    // Load comments when page loads (only if contentId is pre-filled)
-    loadComments();
+    // Load comments when page loads (only if contentId is pre-filled and user is authenticated)
+    if (authToken) {
+      loadComments();
+    }
   </script>
 </body>
 </html>
