@@ -1,5 +1,5 @@
 import { Error_handler_class } from "../.././utils/index.js";
-import { user } from "../../../Database/models/index.js";
+import { user } from "./../../../DB/models/user.model.js";
 import { compareSync, hashSync } from "bcrypt";
 import jwt from "jsonwebtoken";
 // sign up api

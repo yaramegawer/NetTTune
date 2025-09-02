@@ -3,7 +3,7 @@ import { connectDB } from './DB/connection.js';
 import dotenv from 'dotenv';
 import moviesRouter from './src/modules/Movies/MoviesRouter.js';
 import commentRouter from './src/modules/comments/commentRouter.js';
-import {user_router} from './src/modules/index.js';
+import user_router from './src/modules/user/user.route.js';
 import favMovieRouter from './src/modules/FavouriteMovie/favMovieRouter.js';
 import cron from 'node-cron';
 import { scrapeMovies } from './src/services/scrabeService.js';
@@ -31,6 +31,7 @@ app.use('/movies',moviesRouter);
 app.use('/comments',commentRouter)
 app.use('/user',user_router)
 app.use('/favourites',favMovieRouter);
+
 cron.schedule("0 9 */3 * *", () => {
   console.log("Running scheduled scrapeMovies task...");
   scrapeMovies({}, { json: () => {} }, () => {});

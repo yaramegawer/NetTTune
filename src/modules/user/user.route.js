@@ -29,4 +29,4 @@ user_router.put(
   error_handle(user_controller.update_profile)
 );
 
-export { user_router };
+export default user_router ;
