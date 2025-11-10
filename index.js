@@ -8,23 +8,13 @@ import favMovieRouter from "./src/modules/FavouriteMovie/favMovieRouter.js";
 import cron from "node-cron";
 import { scrapeMovies } from "./src/services/scrabeService.js";
 import cors from "cors";
+import { init_socket } from "./src/utils/socket.js";
 const app = express();
 
 dotenv.config();
 await connectDB();
 
 app.use(cors());
-
-//adding socket.io configuration
-import http from "http";
-const server = http.createServer(app);
-import { Server } from "socket.io";
-export const io = new Server(server, {
-  cors: {
-    origin: "*", // adjust for security
-    methods: ["GET", "POST"],
-  },
-});
 
 app.use(express.json());
 app.use("/movies", moviesRouter);
@@ -51,17 +41,16 @@ app.use((error, req, res, next) => {
   });
 });
 
+const server = app.listen(process.env.PORT, () =>
+  console.log(`Example app listening at http://localhost:${process.env.PORT}`)
+);
 //app.listen(process.env.PORT, () => console.log(`Example app listening at http://localhost:${process.env.PORT}`))
-
+const io = init_socket(server);
 io.on("connection", (socket) => {
   console.log("User connected ", socket.id);
   socket.on("comment", (msg) => {
     console.log("New comment recieved", msg);
   });
 });
-
-server.listen(process.env.PORT, () =>
-  console.log(`Example app listening at http://localhost:${process.env.PORT}`)
-);
 
 export default server;
