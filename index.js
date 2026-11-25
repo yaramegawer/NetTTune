@@ -41,16 +41,19 @@ app.use((error, req, res, next) => {
   });
 });
 
-const server = app.listen(process.env.PORT, () =>
-  console.log(`Example app listening at http://localhost:${process.env.PORT}`)
-);
-//app.listen(process.env.PORT, () => console.log(`Example app listening at http://localhost:${process.env.PORT}`))
-const io = init_socket(server);
-io.on("connection", (socket) => {
-  console.log("User connected ", socket.id);
-  socket.on("comment", (msg) => {
-    console.log("New comment recieved", msg);
+// Only start server if not running on Vercel
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  const server = app.listen(process.env.PORT || 5000, () =>
+    console.log(`Example app listening at http://localhost:${process.env.PORT || 5000}`)
+  );
+  
+  const io = init_socket(server);
+  io.on("connection", (socket) => {
+    console.log("User connected ", socket.id);
+    socket.on("comment", (msg) => {
+      console.log("New comment recieved", msg);
+    });
   });
-});
+}
 
-export default server;
+export default app;

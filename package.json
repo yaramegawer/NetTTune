@@ -27,7 +27,6 @@
     "puppeteer": "^24.15.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-adblocker": "^2.13.6",
-    "socket.io": "^4.8.1",
-    "start": "^5.1.0"
+    "socket.io": "^4.8.1"
   }
 }

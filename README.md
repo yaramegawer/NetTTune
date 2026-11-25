@@ -54,7 +54,7 @@ This backend service powers Nettune, a platform that automatically scrapes movie
 4. **Create a `.env` file in the root directory with:**
     ```env
     PORT=5000
-    MONGO_URI=your_mongodb_connection_string
+    CONNECTION_URL=your_mongodb_connection_string
     JWT_SECRET=your_jwt_secret
     ```
 
