@@ -3,7 +3,7 @@ import { user } from "./../../DB/models/user.model.js";
 export const auth = () => {
   return async (req, res, next) => {
     try {
-      const { token } = req.headers;
+      const token = req.headers.authorization || req.headers.token;
       if (!token) {
         res.status(400).json({
           message: "please sign_in first , there is no token generated",
