@@ -3,8 +3,8 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { get_socket } from "../../utils/socket.js";
 
 export const addComment = asyncHandler(async (req, res, next) => {
-  const userId = req.authUser._id;
-  const comment = await Comment.create({ userId: userId, ...req.body });
+  const { userId } = req.body;
+  const comment = await Comment.create({ userId: userId || null, ...req.body });
 
   get_socket().emit("newComment", comment);
   return res.json({

@@ -6,8 +6,9 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 
 export const addFavMovie=asyncHandler(async(req,res,next)=>{
     const {id}=req.params;
+    const { userID } = req.body;
 
-    const userID=req.authUser._id;
+    if(!userID) return next(new Error("userID is required",{cause:400}));
 
     const movie=await Content.findById(id);
 
@@ -29,7 +30,9 @@ export const addFavMovie=asyncHandler(async(req,res,next)=>{
 
 // GET /users/:id/favorites – Get user’s favorite movies.
 export const getFavMovie=asyncHandler(async(req,res,next)=>{
-    const userID=req.authUser._id;
+    const { userID } = req.query;
+
+    if(!userID) return next(new Error("userID is required in query params",{cause:400}));
 
     const favourites=await Favourite.find({userID});
 
@@ -51,7 +54,9 @@ export const getFavMovie=asyncHandler(async(req,res,next)=>{
 
 export const deleteFavMovie=asyncHandler(async(req,res,next)=>{
     const { movieId } = req.params;
-    const userID = req.authUser._id;
+    const { userID } = req.body;
+
+    if(!userID) return next(new Error("userID is required in body",{cause:400}));
 
     const favourite = await Favourite.findOneAndDelete({ movieID: movieId, userID });
 
