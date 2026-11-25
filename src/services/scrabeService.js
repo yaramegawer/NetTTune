@@ -21,8 +21,14 @@ const headers = {
 };
 
 async function getTotalPages() {
-  const { data } = await axios.get(`${baseUrl}${listingPath}`, { headers });
-  const $ = cheerio.load(data);
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  await page.goto(`${baseUrl}${listingPath}`, { waitUntil: 'domcontentloaded' });
+  const content = await page.content();
+  await browser.close();
+  
+  const $ = cheerio.load(content);
   const lastPageLink = $('ul.pagination li a').last().attr('href');
   const match = lastPageLink?.match(/page\/(\d+)/);
   return match ? parseInt(match[1]) : 1;
@@ -53,8 +59,13 @@ async function scrapeMovies() {
 async function scrapeMovieListPage(pageUrl, browser) {
   console.log(`📄 Scraping: ${pageUrl}`);
   try {
-    const { data } = await axios.get(pageUrl, { headers, timeout: 10000 });
-    const $ = cheerio.load(data);
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const content = await page.content();
+    await page.close();
+    
+    const $ = cheerio.load(content);
     const elements = $('.ml-item').toArray();
 
     const movieTasks = elements.map(async el => {
@@ -99,8 +110,13 @@ async function scrapeMovieListPage(pageUrl, browser) {
 
 async function scrapeMovieDetails(movieUrl, browser) {
   try {
-    const { data } = await axios.get(movieUrl, { headers, timeout: 10000 });
-    const $ = cheerio.load(data);
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.goto(movieUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const content = await page.content();
+    await page.close();
+    
+    const $ = cheerio.load(content);
 
     const genreArray = [];
     $('p:contains("Genre:") a').each((_, el) => genreArray.push($(el).text().trim()));
