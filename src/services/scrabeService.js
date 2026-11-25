@@ -3,13 +3,18 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const cheerio = require('cheerio');
 import { Content } from '../../DB/models/contentModel.js';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import pLimit from 'p-limit';
+
+puppeteer.use(StealthPlugin());
 
 const baseUrl = 'https://ww25.soap2day.day';
 const listingPath = '/movies';
-const listPageLimit = pLimit(6);
-const puppeteerLimit = pLimit(4);
+const listPageLimit = pLimit(3);
+const puppeteerLimit = pLimit(2);
+
+const randomDelay = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 const headers = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -21,10 +26,31 @@ const headers = {
 };
 
 async function getTotalPages() {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({ 
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled']
+  });
   const page = await browser.newPage();
+  
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  });
+  
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-  await page.goto(`${baseUrl}${listingPath}`, { waitUntil: 'domcontentloaded' });
+  await page.setViewport({ width: 1920, height: 1080 });
+  await page.setExtraHTTPHeaders({
+    'Accept-Language': 'en-US,en;q=0.9'
+  });
+  
+  // Visit homepage first to establish session
+  await new Promise(resolve => setTimeout(resolve, randomDelay(2000, 4000)));
+  await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+  await new Promise(resolve => setTimeout(resolve, randomDelay(3000, 5000)));
+  
+  // Then navigate to movies
+  await page.goto(`${baseUrl}${listingPath}`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await new Promise(resolve => setTimeout(resolve, randomDelay(3000, 5000)));
+  
   const content = await page.content();
   await browser.close();
   
@@ -37,7 +63,10 @@ async function getTotalPages() {
 async function scrapeMovies() {                                                                                                                                                                                                                                                                
   const totalPages = await getTotalPages();
   console.log(`🔎 Total pages: ${totalPages}`);
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({ 
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled']
+  });
 
   let savedCount = 0;
   const pageTasks = [];
@@ -60,8 +89,22 @@ async function scrapeMovieListPage(pageUrl, browser) {
   console.log(`📄 Scraping: ${pageUrl}`);
   try {
     const page = await browser.newPage();
+    
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    });
+    
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Referer': 'https://www.google.com/'
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, randomDelay(3000, 6000)));
+    await page.goto(pageUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    await new Promise(resolve => setTimeout(resolve, randomDelay(3000, 5000)));
+    
     const content = await page.content();
     await page.close();
     
@@ -112,7 +155,15 @@ async function scrapeMovieDetails(movieUrl, browser) {
   try {
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.goto(movieUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9'
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, randomDelay(2000, 5000)));
+    await page.goto(movieUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    await new Promise(resolve => setTimeout(resolve, randomDelay(2000, 4000)));
+    
     const content = await page.content();
     await page.close();
     
