@@ -9,7 +9,7 @@ import pLimit from 'p-limit';
 
 puppeteer.use(StealthPlugin());
 
-const baseUrl = 'https://ww25.soap2day.day';
+const baseUrl = 'https://ww8.123moviesfree.net';
 const listingPath = '/movies';
 const listPageLimit = pLimit(3);
 const puppeteerLimit = pLimit(2);
