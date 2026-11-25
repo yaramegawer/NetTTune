@@ -57,6 +57,7 @@ This backend service powers Nettune, a platform that automatically scrapes movie
     CONNECTION_URL=your_mongodb_connection_string
     SIGNATURE=your_jwt_signature_key
     SALT_ROUNDS=10
+    BEARER=Bearer
     ```
 
 5. **Start the server:**

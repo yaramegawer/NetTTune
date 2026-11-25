@@ -44,7 +44,7 @@ export const log_in = async (req, res, next) => {
   await is_user_exists.save();
   res
     .status(200)
-    .json({ message: "user logged in successfully", token: token });
+    .json({ message: "user logged in successfully", token: `${process.env.BEARER} ${token}` });
 };
 // get profile api
 export const list_profile = async (req, res, next) => {
