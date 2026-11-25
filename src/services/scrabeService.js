@@ -7,7 +7,7 @@ import puppeteer from 'puppeteer';
 import pLimit from 'p-limit';
 
 const baseUrl = 'https://ww25.soap2day.day';
-const listingPath = '/movies-2kjgs';
+const listingPath = '/movies';
 const listPageLimit = pLimit(6);
 const puppeteerLimit = pLimit(4);
 
