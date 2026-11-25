@@ -9,13 +9,7 @@ export const auth = () => {
           message: "please sign_in first , there is no token generated",
         });
       }
-      if (!token.startsWith(process.env.BEARER)) {
-        res.status(400).json({
-          message: "invalid token",
-        });
-      }
-      const original_token = token.split(" ")[1];
-      const decoded_data = jwt.verify(original_token, process.env.SIGNATURE);
+      const decoded_data = jwt.verify(token, process.env.SIGNATURE);
       if (!decoded_data?.user_id) {
         res.status(400).json({
           message: "invalid token payload",
