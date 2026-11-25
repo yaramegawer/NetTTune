@@ -8,11 +8,20 @@ import pLimit from 'p-limit';
 
 const baseUrl = 'https://ww25.soap2day.day';
 const listingPath = '/movies-2kjgs';
-const listPageLimit = pLimit(6);         // Controls list page concurrency
-const puppeteerLimit = pLimit(4);        // Controls Puppeteer usage
+const listPageLimit = pLimit(6);
+const puppeteerLimit = pLimit(4);
+
+const headers = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.5',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Connection': 'keep-alive',
+  'Upgrade-Insecure-Requests': '1',
+};
 
 async function getTotalPages() {
-  const { data } = await axios.get(`${baseUrl}${listingPath}`);
+  const { data } = await axios.get(`${baseUrl}${listingPath}`, { headers });
   const $ = cheerio.load(data);
   const lastPageLink = $('ul.pagination li a').last().attr('href');
   const match = lastPageLink?.match(/page\/(\d+)/);
@@ -44,7 +53,7 @@ async function scrapeMovies() {
 async function scrapeMovieListPage(pageUrl, browser) {
   console.log(`📄 Scraping: ${pageUrl}`);
   try {
-    const { data } = await axios.get(pageUrl, { timeout: 10000 });
+    const { data } = await axios.get(pageUrl, { headers, timeout: 10000 });
     const $ = cheerio.load(data);
     const elements = $('.ml-item').toArray();
 
@@ -90,7 +99,7 @@ async function scrapeMovieListPage(pageUrl, browser) {
 
 async function scrapeMovieDetails(movieUrl, browser) {
   try {
-    const { data } = await axios.get(movieUrl, { timeout: 10000 });
+    const { data } = await axios.get(movieUrl, { headers, timeout: 10000 });
     const $ = cheerio.load(data);
 
     const genreArray = [];
